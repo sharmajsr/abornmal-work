@@ -47,12 +47,12 @@ class FileViewSet(viewsets.ModelViewSet):
         # Reset file pointer for later use
         uploaded_file.seek(0)
         
-        # Check if file with same hash already exists
+        # Check if file with the same hash already exists
         existing_file = File.objects.filter(file_hash=file_hash).first()
         
-        # Create new file record regardless of whether the file exists
+        # Create a new file record that references the existing file if it exists
         file_obj = File(
-            file=uploaded_file,
+            file=existing_file.file if existing_file else uploaded_file,  # Reference existing file or use the new one
             name=uploaded_file.name,
             size=uploaded_file.size,
             content_type=uploaded_file.content_type,
@@ -60,9 +60,7 @@ class FileViewSet(viewsets.ModelViewSet):
             file_hash=file_hash
         )
         
-        # If the file already exists, we'll use its physical location
-        # This is handled in the model's save method
-        file_obj.save()
+        file_obj.save()  # Save the new record in the database
         
         response_serializer = FileSerializer(file_obj, context={'request': request})
         return Response(response_serializer.data, status=status.HTTP_201_CREATED)
@@ -74,17 +72,12 @@ class FileViewSet(viewsets.ModelViewSet):
     
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
-        
-        # Check if other files are using the same physical file
-        same_hash_count = File.objects.filter(file_hash=instance.file_hash).count()
-        
-        # Only delete the physical file if this is the last reference to it
-        if same_hash_count <= 1:
-            # Delete the physical file
-            if instance.file:
-                if os.path.isfile(os.path.join(settings.MEDIA_ROOT, instance.file.name)):
-                    os.remove(os.path.join(settings.MEDIA_ROOT, instance.file.name))
-        
-        # Always delete the database record
-        self.perform_destroy(instance)
+        # Check if there are any remaining references to this file
+        if instance.file_hash:
+            remaining_references = File.objects.filter(file_hash=instance.file_hash).count()
+            if remaining_references == 1:  # This is the last reference
+                # Delete the actual file from the uploads folder
+                instance.file.delete(save=False)  # Delete the file from storage
+
+        instance.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)

@@ -1,44 +1,52 @@
-import React, { useState } from 'react';
-import { FileUpload } from './components/FileUpload';
-import { FileList } from './components/FileList';
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
+import FileList from './components/FileList';
+import FileUpload from './components/FileUpload';
+import FileDetails from './components/FileDetails';
+
+// Create a client
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      refetchOnWindowFocus: false,
+      retry: 1,
+    },
+  },
+});
 
 function App() {
-  const [refreshKey, setRefreshKey] = useState(0);
-
-  const handleUploadSuccess = () => {
-    setRefreshKey(prev => prev + 1);
-  };
-
   return (
-    <div className="min-h-screen bg-gray-100">
-      <header className="bg-white shadow">
-        <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
-          <h1 className="text-3xl font-bold text-gray-900">Abnormal Security - File Hub</h1>
-          <p className="mt-1 text-sm text-gray-500">
-            File management system
-          </p>
-        </div>
-      </header>
-      <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-        <div className="px-4 py-6 sm:px-0">
-          <div className="space-y-6">
-            <div className="bg-white shadow sm:rounded-lg">
-              <FileUpload onUploadSuccess={handleUploadSuccess} />
+    <QueryClientProvider client={queryClient}>
+      <Router>
+        <div className="min-h-screen bg-gray-100">
+          <header className="bg-white shadow">
+            <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
+              <h1 className="text-3xl font-bold text-gray-900">File Hub</h1>
             </div>
-            <div className="bg-white shadow sm:rounded-lg">
-              <FileList key={refreshKey} />
+          </header>
+          <main>
+            <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+              <Routes>
+                <Route path="/" element={
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div className="lg:col-span-2">
+                      <FileList />
+                    </div>
+                    <div>
+                      <FileUpload />
+                    </div>
+                  </div>
+                } />
+                <Route path="/files/:id" element={<FileDetails />} />
+              </Routes>
             </div>
-          </div>
+          </main>
         </div>
-      </main>
-      <footer className="bg-white shadow mt-8">
-        <div className="max-w-7xl mx-auto py-4 px-4 sm:px-6 lg:px-8">
-          <p className="text-center text-sm text-gray-500">
-            © 2024 File Hub. All rights reserved.
-          </p>
-        </div>
-      </footer>
-    </div>
+      </Router>
+      <ReactQueryDevtools initialIsOpen={false} />
+    </QueryClientProvider>
   );
 }
 

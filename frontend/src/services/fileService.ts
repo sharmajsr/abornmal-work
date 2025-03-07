@@ -1,12 +1,47 @@
 import axios from 'axios';
-import { File as FileType } from '../types/file';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000/api';
 
-export const fileService = {
-  async uploadFile(file: File): Promise<FileType> {
+export interface FileMetadata {
+  id: string;
+  name: string;
+  size: number;
+  content_type: string;
+  hash_type: string;
+  file_hash: string;
+  uploaded_at: string;
+  download_url: string;
+}
+
+export interface FileUploadResponse {
+  id: string;
+  name: string;
+  size: number;
+  content_type: string;
+  hash_type: string;
+  file_hash: string;
+  uploaded_at: string;
+  download_url: string;
+}
+
+const fileService = {
+  // Get all files
+  getFiles: async (): Promise<FileMetadata[]> => {
+    const response = await axios.get(`${API_URL}/files/`);
+    return response.data;
+  },
+
+  // Get file details
+  getFileDetails: async (fileId: string): Promise<FileMetadata> => {
+    const response = await axios.get(`${API_URL}/files/${fileId}/`);
+    return response.data;
+  },
+
+  // Upload file
+  uploadFile: async (file: File, hashType: string = 'blake3'): Promise<FileUploadResponse> => {
     const formData = new FormData();
     formData.append('file', file);
+    formData.append('hash_type', hashType);
 
     const response = await axios.post(`${API_URL}/files/`, formData, {
       headers: {
@@ -16,34 +51,42 @@ export const fileService = {
     return response.data;
   },
 
-  async getFiles(): Promise<FileType[]> {
-    const response = await axios.get(`${API_URL}/files/`);
-    return response.data;
+  // Delete file
+  deleteFile: async (fileId: string): Promise<void> => {
+    await axios.delete(`${API_URL}/files/${fileId}/`);
   },
 
-  async deleteFile(id: string): Promise<void> {
-    await axios.delete(`${API_URL}/files/${id}/`);
+  // Format file size for display
+  formatFileSize: (bytes: number): string => {
+    if (bytes === 0) return '0 Bytes';
+    
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   },
 
-  async downloadFile(fileUrl: string, filename: string): Promise<void> {
-    try {
-      const response = await axios.get(fileUrl, {
-        responseType: 'blob',
-      });
-      
-      // Create a blob URL and trigger download
-      const blob = new Blob([response.data]);
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = filename;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
-    } catch (error) {
-      console.error('Download error:', error);
-      throw new Error('Failed to download file');
+  // Get file icon based on content type
+  getFileIcon: (contentType: string): string => {
+    if (contentType.startsWith('image/')) {
+      return 'image';
+    } else if (contentType.startsWith('video/')) {
+      return 'video';
+    } else if (contentType.startsWith('audio/')) {
+      return 'audio';
+    } else if (contentType.includes('pdf')) {
+      return 'pdf';
+    } else if (contentType.includes('word') || contentType.includes('document')) {
+      return 'document';
+    } else if (contentType.includes('excel') || contentType.includes('spreadsheet')) {
+      return 'spreadsheet';
+    } else if (contentType.includes('zip') || contentType.includes('compressed')) {
+      return 'archive';
+    } else {
+      return 'file';
     }
-  },
-}; 
+  }
+};
+
+export default fileService; 
