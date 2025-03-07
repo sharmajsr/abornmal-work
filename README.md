@@ -59,6 +59,7 @@ docker-compose up --build
 
 4. **Run migrations**
    ```bash
+   python manage.py makemigrations files
    python manage.py migrate
    ```
 
